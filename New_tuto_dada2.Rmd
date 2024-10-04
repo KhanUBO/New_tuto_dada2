@@ -1,33 +1,79 @@
 ---
 title: "R Notebook"
 output: github_document
+editor_options: 
+  markdown: 
+    wrap: sentence
 ---
+
+# **DADA2 Pipeline Tutorial (1.16)**
+
+Ce tutoriel décrit l'utilisation de la version 1.16 du pipeline DADA2 appliqué à un petit ensemble de données multi-échantillons.
+Un ensemble de fichiers fastq séquencés par Illumina est utilisé, ceci sont séparés (démultiplexés) par échantillon, et leurs codes-barres/adaptateurs ont déjà été retirés.
+
+## **1) Getting ready**
+
+Il faut tout d'abord installer le package dada2 s'il n'est pas encore installé.
+Il faut ensuite charger le packages dada2.
 
 ```{r}
 library(dada2); packageVersion("dada2")
 ```
+
+Ensuite, il est nécessaire de télécharger les fichiers fastq en utilisant le terminal et la commande wget.
+Le lien pour le fichier fastq est le suivant : <https://mothur.s3.us-east-2.amazonaws.com/wiki/miseqsopdata.zip> Après le téléchargement, le fichier doit être décompressé à l'aide de la commande unzip.
+Enfin, il faut spécifier le chemin vers le dossier contenant les fichiers fastq.
 
 ```{r}
 path <- "/home/rstudio/New_tuto_dada2/MiSeq_SOP" # CHANGE ME to the directory containing the fastq files after unzipping.
 list.files(path)
 ```
 
+On définit un objet fnFs auquel on assigne tout les fichiers forward et un objet fnRs auquel on assigne tout les fichiers reverse.
+
+-   sort() : Cette fonction prend une liste d'éléments et les trie par ordre alphabétique.
+
+-   list.files() permet de lister tous les fichiers d'un répertoire spécifié.
+
+-   path : objet décrit auparavant, qui permet de donner le chemin vers les fichiers fastq
+
+-   pattern : permet de spécifié que seuls les fichiers correspondant à un motif (e.g. "\_R1_001.fastq") seront listés.
+
+-   full.names = TRUE : Cet argument indique que la fonction doit renvoyer les chemins complets des fichiers trouvés, ce qui est utile pour éviter toute ambiguïté concernant l'emplacement des fichiers.
+
 ```{r}
 # Forward and reverse fastq filenames have format: SAMPLENAME_R1_001.fastq and SAMPLENAME_R2_001.fastq
 fnFs <- sort(list.files(path, pattern="_R1_001.fastq", full.names = TRUE))
 fnRs <- sort(list.files(path, pattern="_R2_001.fastq", full.names = TRUE))
+```
+
+La fonction sapply permet d'appliquer une fonction à l'ensemble de la liste.
+Ici sapply est utilisé pour appliquer la fonction de sous-indexation ([), qui extrait le premier élément de chaque vecteur résultant de strsplit.
+strsplit : divise chaque nom de fichier (obtenu par basename) en un vecteur de sous-chaînes, en utilisant le caractère underscore (\_) comme séparateur.
+basename(fnFs) : extrait les noms de fichiers à partir d'un chemin complet, en supprimant le chemin d'accès.
+Elle renvoie uniquement les noms de fichiers.
+
+```{r}
 # Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
 sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+```
 
-fnFs <- sort(list.files(path, pattern = "R1_001.fastq", full.names = TRUE))
-fnRs <- sort(list.files(path, pattern = "R2_001.fastq", full.names = TRUE))
-sample.names <- sapply(strsplit(basename(fnFs),"_"),`[`, 1)
+## **2) Inspecter les profils de qualité des lectures**rm
+
+La fonction plotQualityProfile permet la visualisation de la distribution des scores de qualité en fonction de la position de la séquence pour le ou les fichiers fastq d'entrée.
+
+```{r}
 plotQualityProfile(fnFs[1:2])
 ```
 
 ```{r}
 plotQualityProfile(fnRs[1:2])
 ```
+
+<u>Filtrer et couper</u> Les lectures arrière ont une qualité nettement inférieure, surtout à la fin, ce qui est courant dans le séquençage Illumina.
+Cela n'est pas trop préoccupant, car DADA2 intègre les informations de qualité dans son modèle d'erreur, ce qui rend l'algorithme robuste face à des séquences de moindre qualité.
+Cependant, le fait de couper lorsque les qualités moyennes chutent améliorera la sensibilité de l'algorithme aux variantes de séquence rares.
+Sur la base de ces profils, nous allons tronquer les lectures arrière à la position 160, où la distribution de la qualité s'effondre.
 
 ```{r}
 # Place filtered files in filtered/ subdirectory
@@ -58,6 +104,10 @@ errR <- learnErrors(filtRs, multithread=TRUE)
 plotErrors(errF, nominalQ=TRUE)
 ```
 
+La fonction dada: reçoit les donnés filtrées et applique le modèle de correction d'erreur pour obtenir les données corrigées.
+La fonction dada prend en entrée des lectures d'amplification séquencées dédupliquées (les séquences identiques regroupées en une pour éviter les doublons) et renvoie la composition inférée de l'échantillon (ou des échantillons).
+En d'autres termes, dada élimine toutes les erreurs de séquençage pour révéler les membres de la communauté séquencée dont les potentiels variants biologiques.
+
 ```{r}
 dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
 ```
@@ -69,6 +119,10 @@ dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
 ```{r}
 dadaFs[[2]]
 ```
+
+La fonction mergePairs permet de merger les séquences R1 et R2.
+Cette fonction tente de fusionner chaque paire de lectures sens et anti-sens débruitée, en rejetant les paires qui ne se chevauchent pas suffisamment ou qui contiennent trop d'incompatibilités dans la région de chevauchement.
+Remarque : cette fonction suppose que les fichiers fastq des lectures sens et anti-sens sont dans le même ordre.
 
 ```{r}
 mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
@@ -85,7 +139,6 @@ dim(seqtab)
 # Inspect distribution of sequence lengths
 table(nchar(getSequences(seqtab)))
 ```
-
 
 ```{r}
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
@@ -116,7 +169,6 @@ rownames(taxa.print) <- NULL
 head(taxa.print)
 ```
 
-
 ```{r}
 unqs.mock <- seqtab.nochim["Mock",]
 unqs.mock <- sort(unqs.mock[unqs.mock>0], decreasing=TRUE) # Drop ASVs absent in the Mock
@@ -129,13 +181,14 @@ match.ref <- sum(sapply(names(unqs.mock), function(x) any(grepl(x, mock.ref))))
 cat("Of those,", sum(match.ref), "were exact matches to the expected reference sequences.\n")
 ```
 
-
 Bonus: Handoff to phyloseq
 
 Import into phyloseq:
+
 ```{r}
 library(phyloseq); packageVersion("phyloseq")
 ```
+
 ```{r}
 library(Biostrings); packageVersion("Biostrings")
 ```
@@ -173,11 +226,13 @@ ps
 ```
 
 Visualize alpha-diversity:
+
 ```{r}
 plot_richness(ps, x="Day", measures=c("Shannon", "Simpson"), color="When")
 ```
 
 Ordinate:
+
 ```{r}
 # Transform data to proportions as appropriate for Bray-Curtis distances
 ps.prop <- transform_sample_counts(ps, function(otu) otu/sum(otu))
@@ -189,18 +244,10 @@ plot_ordination(ps.prop, ord.nmds.bray, color="When", title="Bray NMDS")
 ```
 
 Bar plot:
+
 ```{r}
 top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
 ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
 ps.top20 <- prune_taxa(top20, ps.top20)
 plot_bar(ps.top20, x="Day", fill="Family") + facet_wrap(~When, scales="free_x")
 ```
-
-
-
-
-
-
-
-
-
