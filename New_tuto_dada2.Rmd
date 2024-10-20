@@ -191,7 +191,7 @@ out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
 head(out)
 ```
 
-## **3)** Creátion du modèle d'erreur
+## **3) Creátion du modèle d'erreur**
 
 ```{r}
 errF <- learnErrors(filtFs, multithread=TRUE)
