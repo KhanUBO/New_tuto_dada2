@@ -123,7 +123,7 @@ De manière générale, les "heat map" montrent donc des tendances similaires, a
 
 **Il faut être vigilent lors du troncage des reads! Il est essentiel que les séquences forward et reverse contiennent suffisamment de bases pour assurer un overlap adéquat lors de l'assemblage, se qui garantira une lecture précise, même après troncage.**
 
-## **2) Filtration des séquences reverse et forward**
+## **3) Filtration des séquences reverse et forward**
 
 [**Filtrer et couper:**]{.underline} Une fois la position de troncage des séquences déterminée, celles-ci seront coupées et filtrées selon divers paramètres.
 Avant cela, il est nécessaire de définir de nouvelles variables dans laquelle ces nouvelles séquences seront rangées.
@@ -164,12 +164,25 @@ Lors de cette nouvelle étape, les séquences sous format FASTQ désignées par 
 
 -   **maxN=0** : Si une séquence contient un "N", elle sera exclue du jeu de données.
 
--   **maxEE=c(2,2)** : b
+-   **truncQ=2** : spécifie un seuil de qualité.
+    Si une base a un **score inférieur à 2**, la séquence sera **coupée** juste avant cette base.
+    Les bases après ce point ne sont donc pas conservées.
+    En pratique, un score de qualité 2 est très bas.
+    Donc, cette option vise à éliminer les bases avec une qualité extrêmement faible vers la fin des séquences, où les erreurs de lecture sont plus fréquentes.
+
+-   **maxEE=c(2,2)** : Limite le nombre maximum d'erreurs attendues pour les reads **forward** et **reverse** à 2.
+    Les séquences avec plus d'erreurs attendues seront supprimées.
 
 -   **rm.phix=TRUE** : Supprime les séquences du bactériophage **PhiX**, un contrôle utilisé dans les machines Illumina qui peut contaminer les données de séquençage.
     Normalement, ces séquences sont enlevées, mais il se peut que certaines séquences passent au travers du filtre Illumina, donc il est utile de refiltrer ces séquences.
 
--   
+-   **compress=TRUE** : Les fichiers de sortie seront compressés en **gzip**.
+
+-   **multithread=TRUE** : Utilise plusieurs threads pour accélérer la filtration et le troncage.
+
+-   **out** : objet de sortie qui contient le résultat de la fonction **filterAndTrim**, c'est une table récapitulant les nombres de reads avant et après le filtrage.
+
+-   **head(out)** : Affiche les premières lignes de la table **out**, montrant un aperçu du nombre de reads conservés après le filtrage pour chaque échantillon.
 
 ```{r}
 out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
@@ -177,6 +190,8 @@ out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
               compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
 head(out)
 ```
+
+## **3)** Creátion du modèle d'erreur
 
 ```{r}
 errF <- learnErrors(filtFs, multithread=TRUE)
