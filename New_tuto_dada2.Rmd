@@ -6,40 +6,63 @@ editor_options:
     wrap: sentence
 ---
 
-# **DADA2 Pipeline Tutorial (1.16)**
+# [**Premiers pas sur Rstudio et github**]{.underline}
+
+Avant même de commencer ce tutoriel pour apprendre à utiliser le package **DADA2**, certaines étapes préliminaires ont été nécessaires.
+Tout d'abord, il a fallu créer un repository sur GitHub nommé **"New_tuto_dada2"**.
+Ensuite, ce repository a été lié au projet RStudio **"New_tuto_dada2.rmd"** afin de synchroniser et versionner le code R.
+Cela permet d'assurer un suivi des modifications et potentiellement de faciliter une collaboration sur un projet en cours.
+Une fois cette configuration en place, la réalisation du tutoriel sur l'utilisation de DADA2 dans RStudio a commencé.
+
+Pour réaliser ce travail il a fallu travailler sur un fichier RMarkdown.
+RMarkdown est un format de document qui intègre du texte explicatif et du code R exécutable, cela permet une visualisation immédiate des résultats des lignes de code.
+Dans RStudio, on peut créer un fichier RMarkdown via le menu File, puis insérer des "chunks" de code R qui apparaissent en gris et sont encadrés par des balises spécifiques pour exécuter et afficher les résultats directement dans le document.
+
+Dans les "chunks" de code R il est possible d'écrire des commentaires en utilisant le symbole #, cela pour délimiter les éléments commentés afin qu'il ne soient pas pris en compte dans la ligne de code.
+Ce symbole n'est pas nécessaire hors des "chunks".
+
+# [**DADA2 Pipeline Tutorial (1.16)**]{.underline}
 
 Ce tutoriel décrit l'utilisation de la version 1.16 du pipeline DADA2 appliqué à un petit ensemble de données multi-échantillons.
-Un ensemble de fichiers fastq séquencés par Illumina est utilisé, ceci sont séparés (démultiplexés) par échantillon, et leurs codes-barres/adaptateurs ont déjà été retirés.
+Ce travail a été réalisé en suivant le tutoriel de la pipeline DADA2 disponible en suivant le lien suivant : <https://benjjneb.github.io/dada2/tutorial.html>
+
+Un ensemble de fichiers FASTQ (fichiers de séquençage) séquencés par Illumina a été utilisé.
+Ces fichiers FASTQ ont été générés par séquençage d'amplicons de la région V4 du gène de l'ARNr 16S à partir d'échantillons intestinaux collectés chez 20 souris après sevrage.
+Ces fichiers FASTQ ont été séparés (démultiplexés) par échantillon, et leurs codes-barres/adaptateurs ont été retirés.
 
 ## **1) Getting ready**
 
 Il faut tout d'abord installer le package dada2 s'il n'est pas encore installé.
-Il faut ensuite charger le packages dada2.
+Il faut ensuite charger le package dada2 grace à la fonction **library**.
 
 ```{r}
 library(dada2); packageVersion("dada2")
 ```
 
-Ensuite, il est nécessaire de télécharger les fichiers fastq en utilisant le terminal et la commande wget.
-Le lien pour le fichier fastq est le suivant : <https://mothur.s3.us-east-2.amazonaws.com/wiki/miseqsopdata.zip> Après le téléchargement, le fichier doit être décompressé à l'aide de la commande unzip.
-Enfin, il faut spécifier le chemin vers le dossier contenant les fichiers fastq.
+Ensuite, il a fallu télécharger les fichiers FASTQ en utilisant le terminal et la commande **wget**.
+Le lien nécessaire afin de télécharger les fichiers FASTQ est le suivant : <https://mothur.s3.us-east-2.amazonaws.com/wiki/miseqsopdata.zip>
+
+Après le téléchargement, le fichier a dû être décompressé à l'aide de la commande **unzip**.
+Pour finir cette premiere étape d'aquisition des données, le chemin vers le dossier **MiSeq_SOP** contenant les fichiers FASTQ a été spécifié à l'aide de la variable **path**.
+Cette variable définissait l'emplacement où les fichiers FASTQ étaient stockés après décompression.
+Le chemin avait été défini comme suit :
 
 ```{r}
 path <- "/home/rstudio/New_tuto_dada2/MiSeq_SOP" # CHANGE ME to the directory containing the fastq files after unzipping.
 list.files(path)
 ```
 
-On définit un objet fnFs auquel on assigne tout les fichiers forward et un objet fnRs auquel on assigne tout les fichiers reverse.
+Par la suite, deux nouvelles variables ont été définies : un objet fnFs auquel ont été assignés tous les fichiers **forward**, et un objet fnRs auquel ont été assignés tous les fichiers **reverse**.
 
--   sort() : Cette fonction prend une liste d'éléments et les trie par ordre alphabétique.
+-   **sort()** : Cette fonction prend une liste d'éléments et les trie, soit par ordre alphabétique (pour des chaînes de caractères), soit par ordre croissant (pour des nombres).
 
--   list.files() permet de lister tous les fichiers d'un répertoire spécifié.
+-   **list.files()** : Cette fonction permet de lister tous les fichiers d'un répertoire spécifié.
 
--   path : objet décrit auparavant, qui permet de donner le chemin vers les fichiers fastq
+-   **path** : Objet défini précédemment, qui spécifie le chemin vers les fichiers FASTQ.
 
--   pattern : permet de spécifié que seuls les fichiers correspondant à un motif (e.g. "\_R1_001.fastq") seront listés.
+-   **pattern** : Permet de spécifier un motif afin de ne lister que les fichiers correspondant à ce motif (par exemple, "\_R1_001.fastq" pour les fichiers forward).
 
--   full.names = TRUE : Cet argument indique que la fonction doit renvoyer les chemins complets des fichiers trouvés, ce qui est utile pour éviter toute ambiguïté concernant l'emplacement des fichiers.
+-   **full.names** **= TRUE** : Cet argument indique que la fonction doit renvoyer les chemins complets des fichiers trouvés, ce qui est utile pour éviter toute ambiguïté concernant leur emplacement.
 
 ```{r}
 # Forward and reverse fastq filenames have format: SAMPLENAME_R1_001.fastq and SAMPLENAME_R2_001.fastq
@@ -47,33 +70,76 @@ fnFs <- sort(list.files(path, pattern="_R1_001.fastq", full.names = TRUE))
 fnRs <- sort(list.files(path, pattern="_R2_001.fastq", full.names = TRUE))
 ```
 
-La fonction sapply permet d'appliquer une fonction à l'ensemble de la liste.
-Ici sapply est utilisé pour appliquer la fonction de sous-indexation ([), qui extrait le premier élément de chaque vecteur résultant de strsplit.
-strsplit : divise chaque nom de fichier (obtenu par basename) en un vecteur de sous-chaînes, en utilisant le caractère underscore (\_) comme séparateur.
-basename(fnFs) : extrait les noms de fichiers à partir d'un chemin complet, en supprimant le chemin d'accès.
-Elle renvoie uniquement les noms de fichiers.
+Cette prochaine étape permet d'isoler les nom des échantillons dans une nouvelle variable nommée **sample.names**.
+
+-   **sapply()** : Permet d'appliquer une fonction à l'ensemble de la liste, et dans ce cas, il extrait le premier élément de chaque nom de fichier découpé, qui correspond au nom de l'échantillon, en utilisant la fonction de sous-indexation ([) sur les vecteurs résultant de **strsplit**.
+
+-   **strsplit()** : Divise chaque nom de fichier (obtenu par **basename**) en un vecteur de sous-chaînes, en utilisant le caractère underscore (\_) comme séparateur.
+    Cla créé une liste où chaque élément est un vecteur des parties du nom de fichier.
+    Exemple: le nom du fichier F3D0_S188_L001_R1_001.fastq est divisé en c("F3D0", "S188", "L001", "R1", "001.fastq").
+
+-   **basename()** : Extrait les noms de fichiers à partir d'un chemin complet.
+    Ici cela a permit d'extraire uniquement les noms de fichiers à partir des chemins d'accès complets stockés dans **fnFs**.
 
 ```{r}
 # Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
 sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
 ```
 
-## **2) Inspecter les profils de qualité des lectures**rm
+## **2) Inspecter les profils de qualité des lectures**
 
-La fonction plotQualityProfile permet la visualisation de la distribution des scores de qualité en fonction de la position de la séquence pour le ou les fichiers fastq d'entrée.
+La fonction **plotQualityProfile** permet la visualisation de la distribution des scores de qualité en fonction de la position de la séquence pour les fichiers FASTQ d'entrée.
+
+-   **fnFs** : La variable qui permet de définir le chemin vers les fichiers FASTQ forward
+
+-   **fnFs[1:2]** : Permet de sélectionner seulement les deux premiers éléments de ce vecteur, visualiser les deux premiers fichiers FASTQ de la liste.
+    Cela est utile pour analyser rapidement la qualité des séquences sans charger tous les fichiers à la fois.
+
+Une **heat map** illustre la fréquence de chaque score de qualité par base.
+Le score de qualité moyen pour chaque base est indiqué par une ligne verte, tandis que les quartiles de la distribution des scores de qualité sont représentés par des lignes orange.
 
 ```{r}
 plotQualityProfile(fnFs[1:2])
 ```
 
+Les lectures **forward** (R1) affichent une bonne qualité générale.
+Dans le tutoriel DADA2, il est recommandé de couper les derniers nucléotides pour éviter les erreurs de séquençage potentielles à ces positions.
+Cependant, les profils de qualité des lectures forward ne suggèrent pas la nécessité d'un troncage important.
+Par conséquent, il a été décidé, dans le cadre du tutoriel, de tronquer les lectures forward à la position 240, en supprimant les 10 derniers nucléotides.
+
+Ensuite, ce sont les profils de qualité des lectures reverse qui ont été visualisés :
+
 ```{r}
 plotQualityProfile(fnRs[1:2])
 ```
 
-<u>Filtrer et couper</u> Les lectures arrière ont une qualité nettement inférieure, surtout à la fin, ce qui est courant dans le séquençage Illumina.
-Cela n'est pas trop préoccupant, car DADA2 intègre les informations de qualité dans son modèle d'erreur, ce qui rend l'algorithme robuste face à des séquences de moindre qualité.
-Cependant, le fait de couper lorsque les qualités moyennes chutent améliorera la sensibilité de l'algorithme aux variantes de séquence rares.
-Sur la base de ces profils, nous allons tronquer les lectures arrière à la position 160, où la distribution de la qualité s'effondre.
+Les lectures **reverse** présentent une qualité nettement inférieure, en particulier à la fin des séquences.
+Selon l'auteur du tutoriel, cela est courant dans le séquençage **Illumina**.
+Cependant, le fait que la qualité soit moins bonne à la fin des séquences n'est pas trop inquiétant, car **DADA2** intègre des informations sur la qualité dans son modèle d'erreur, ce qui rend l'algorithme robuste face aux séquences de moindre qualité.
+De plus, un tronquage lorsque les qualités moyennes baissent améliore la sensibilité de l'algorithme aux variants de séquences rares.
+Sur la base de ces profils, les lectures reverse ont été tronquées à la position 160, là où la distribution de la qualité s'effondre.
+
+De manière générale, les "heat map" montrent donc des tendances similaires, avec une qualité décroissante vers la fin des séquences, mais le déclin de la qualité est généralement plus marqué pour les R2 que pour les R1.
+
+**Il faut être vigilent lors du troncage des reads! Il est essentiel que les séquences forward et reverse contiennent suffisamment de bases pour assurer un overlap adéquat lors de l'assemblage, se qui garantira une lecture précise, même après troncage.**
+
+## **2) Filtration des séquences reverse et forward**
+
+[**Filtrer et couper:**]{.underline} Une fois la position de troncage des séquences déterminée, celles-ci seront coupées et filtrées selon divers paramètres.
+Avant cela, il est nécessaire de définir de nouvelles variables dans laquelle ces nouvelles séquences seront rangées.
+
+-   **filtFs** : objet auquel ont été assignés tous les fichiers **forward** filtrés provenant de l'objet fnFs.
+    Cet objet désigne le chemin complet pour les fichiers filtrés des lectures **forward**.
+
+-   **filtRs** : objet auquel ont été assignés tous les fichiers **reverse** filtrés provenant de l'objet fnRs.
+    Cet objet désigne le chemin complet pour les fichiers filtrés des lectures **reverse**.
+
+-   **file.path()** : Fonction qui permet de générer un chemin de fichier valide en combinant les éléments fournis (ici, le chemin de base **path**, un nouveau dossier **filtered**, et le nom de chaque échantillon avec le suffixe \_F_filt.fastq.gz pour les reads forward filtrés ou \_R_filt.fastq.gz pour les reads reverse filtrés. Un exemple de chemin serait donc : path/filtered/F3D0_F_filt.fastq.gz qui correspond à /home/rstudio/New_tuto_dada2/MiSeq_SOP/filtered/F3D0_F_filt.fastq.gz
+
+-   **paste0()** : Permet de concaténer des vecteurs après les avoir convertis en chaînes de caractères.
+    Ici paste0() permet d'assembler le nom des échantillon qui ont précédemment été isolé dans la variable **sample.names** et le suffixe "\_F_filt.fastq.gz" ou "\_R_filt.fastq.gz" sans espace, produisant un nom de fichier complet qui désigne les reads filtrés.
+
+-   **names()** : Permet d'attribuer un nom à chaque éléments de **filtFs** et **filtRs**, en associant chaque fichier FASTQ filtré à son nom d'échantillon correspondant pour faciliter l'identification et l'accès.
 
 ```{r}
 # Place filtered files in filtered/ subdirectory
@@ -82,6 +148,28 @@ filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
 names(filtFs) <- sample.names
 names(filtRs) <- sample.names
 ```
+
+Lors de cette nouvelle étape, les séquences sous format FASTQ désignées par fnFs et fnRs vont être filtrées et tronquées avec la fonction **filterAndTrim** selon plusieurs critères de qualité:
+
+-   **fnFs** : Désigne le chemin d'entrée vers fichiers FASTQ **forward** non filtrés (avant traitement).
+
+-   **filtFs** : Nouvelle variable qui désigne le chemin de sortie des fichiers filtrés **forward** (fichiers de sortie après traitement).
+
+-   **fnRs** : Désigne le chemin d'entrée vers fichiers FASTQ **reverse** non filtrés.
+
+-   **filtRs** : Nouvelle variable qui désigne le chemin de sortie des fichiers filtrés **reverse**.
+
+-   truncLen=c(240,160) : Troncature des séquences après 240 bases pour les reads **forward** et 160 bases pour les reads **reverse**.
+    Les bases au-delà de ces positions sont supprimées pour éviter les erreurs liées à la qualité décroissante.
+
+-   **maxN=0** : Si une séquence contient un "N", elle sera exclue du jeu de données.
+
+-   **maxEE=c(2,2)** : b
+
+-   **rm.phix=TRUE** : Supprime les séquences du bactériophage **PhiX**, un contrôle utilisé dans les machines Illumina qui peut contaminer les données de séquençage.
+    Normalement, ces séquences sont enlevées, mais il se peut que certaines séquences passent au travers du filtre Illumina, donc il est utile de refiltrer ces séquences.
+
+-   
 
 ```{r}
 out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
