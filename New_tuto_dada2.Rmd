@@ -193,6 +193,16 @@ head(out)
 
 ## **3) Creátion du modèle d'erreur**
 
+DADA2 distingue les erreurs de séquençage des **variants biologiques rares** grâce à son modèle d'erreurs.
+En apprenant et affinant les taux d'erreurs spécifiques, l'algorithme détecte les séquences réelles, y compris les variants rares, sans les confondre avec des erreurs, ce qui améliore la précision et la représentation de la diversité biologique dans les échantillons.
+
+DADA2 modélise les taux d'erreurs spécifiques à chaque jeu de données d'amplicons pour corriger les erreurs de séquençage.
+La fonction **learnErrors** estime ces taux en comparant les séquences observées aux scores de qualité.
+L'algorithme ajuste les taux d'erreur en alternant entre l'estimation des erreurs et l'inférence de la composition des séquences jusqu'à convergence.
+Cela permet de distinguer les erreurs des séquences réelles avec précision, améliorant ainsi la qualité des données finales.
+
+-   **learnErrors** : Cette fonction apprend les taux d'erreur à partir des séquences fournies (**filtFs** et **filtRs**).
+
 ```{r}
 errF <- learnErrors(filtFs, multithread=TRUE)
 ## 33514080 total bases in 139642 reads from 20 samples will be used for learning the error rates.
@@ -203,13 +213,17 @@ errR <- learnErrors(filtRs, multithread=TRUE)
 ## 22342720 total bases in 139642 reads from 20 samples will be used for learning the error rates.
 ```
 
+La fonction **plotErrors** permet la visualisation des taux d'erreurs appris dans DADA2 pour les séquences forward (errF) et reverse si voulu (errR), cela permet de vérifier comment l'algorithme a modélisé les erreurs en fonction des scores de qualité.
+
 ```{r}
 plotErrors(errF, nominalQ=TRUE)
 ```
 
-La fonction dada: reçoit les donnés filtrées et applique le modèle de correction d'erreur pour obtenir les données corrigées.
-La fonction dada prend en entrée des lectures d'amplification séquencées dédupliquées (les séquences identiques regroupées en une pour éviter les doublons) et renvoie la composition inférée de l'échantillon (ou des échantillons).
-En d'autres termes, dada élimine toutes les erreurs de séquençage pour révéler les membres de la communauté séquencée dont les potentiels variants biologiques.
+## **4) Correction des erreurs et déduction des séquences**
+
+La fonction **dada()** : Elle reçoit les donnés filtrées et applique le modèle de correction d'erreur pour obtenir les données corrigées.
+La fonction dada prend en entrée des lectures d'amplification séquencées dédupliquées (les séquences identiques regroupées en une pour éviter les doublons) et renvoie la composition inférée des échantillons.
+En d'autres termes, dada élimine toutes les erreurs de séquençage pour révéler les membres de la communauté séquencée dont les potentiels variants biologiques rare.
 
 ```{r}
 dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
