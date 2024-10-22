@@ -191,7 +191,7 @@ out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,160),
 head(out)
 ```
 
-## **3) Creátion du modèle d'erreur**
+## **4) Creátion du modèle d'erreur**
 
 DADA2 distingue les erreurs de séquençage des **variants biologiques rares** grâce à son modèle d'erreurs.
 En apprenant et affinant les taux d'erreurs spécifiques, l'algorithme détecte les séquences réelles, y compris les variants rares, sans les confondre avec des erreurs, ce qui améliore la précision et la représentation de la diversité biologique dans les échantillons.
@@ -219,11 +219,19 @@ La fonction **plotErrors** permet la visualisation des taux d'erreurs appris dan
 plotErrors(errF, nominalQ=TRUE)
 ```
 
-## **4) Correction des erreurs et déduction des séquences**
+## **5) Correction des erreurs et déduction des séquences**
 
 La fonction **dada()** : Elle reçoit les donnés filtrées et applique le modèle de correction d'erreur pour obtenir les données corrigées.
 La fonction dada prend en entrée des lectures d'amplification séquencées dédupliquées (les séquences identiques regroupées en une pour éviter les doublons) et renvoie la composition inférée des échantillons.
 En d'autres termes, dada élimine toutes les erreurs de séquençage pour révéler les membres de la communauté séquencée dont les potentiels variants biologiques rare.
+
+-   **dadaFs** : objet auquel ont été assignés tous les fichiers **forward** corrigés provenant de l'objet filtFs.
+    Cet objet désigne le chemin complet pour les fichiers corrigés des lectures **forward**.
+
+-   **dadaRs** : objet auquel ont été assignés tous les fichiers **reverse** corrigés provenant de l'objet filtRs.
+    Cet objet désigne le chemin complet pour les fichiers corrigés des lectures **reverse**.
+
+-   **err=errF** et **err=errR** : Ici, DADA2 utilise les deux modèles d'erreurs préalablement appris (errF et errR), qui représentent les taux d'erreurs des séquences forward et reverse pour affiner l'identification des vrais variants (ASV = amplicon sequence variant).
 
 ```{r}
 dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
@@ -233,19 +241,35 @@ dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
 dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
 ```
 
+Le code suivant dadaFs[[1]] permet d'obtenir des informations sur les **séquences forward du premier échantillon**.
+
+-   **Les séquences uniques représentant les ASV identifiés ainsi que** les séquences contenant des erreurs de séquencage: dans l'échantillon 1 il y avait **1979 séquences uniques** détectées, dont **128 vrais variants** après correction.
+
 ```{r}
-dadaFs[[2]]
+dadaFs[[1]]
 ```
 
-La fonction mergePairs permet de merger les séquences R1 et R2.
-Cette fonction tente de fusionner chaque paire de lectures sens et anti-sens débruitée, en rejetant les paires qui ne se chevauchent pas suffisamment ou qui contiennent trop d'incompatibilités dans la région de chevauchement.
+## 6) Fusion des lectures reverse et forward
+
+La fonction **mergePairs** permet de merger les séquences R1 et R2.
+Cette fonction tente de fusionner chaque paire de lectures sens et anti-sens filtrées, trimmées et corrigées, en rejetant les paires qui ne se chevauchent pas suffisamment ou qui contiennent trop d'incompatibilités dans la région de chevauchement.
 Remarque : cette fonction suppose que les fichiers fastq des lectures sens et anti-sens sont dans le même ordre.
+
+Par défaut, la longueur minimale d'alignement nécessaire pour fusionner les lectures sens et anti-sens est de 12 bases.
+Ce nombre peut être modifié grace au parametre **minOverlap** de **mergePairs**.
+Il est important de ne pas tronquer les lectures sens et anti-sens dans l'étape de filtration des lectures pour pouvoir les fusionner.
+
+-   **mergers** : objet auquel ont été assignés tous les échantillons avec les reads R1 et R2 qui on été fusionnés.
+-   **head(mergers[[1]])** : Permet d'inspecter les résultats pour le premier échantillon fusionné.
+-   **verbose=TRUE** : Permet de produrie un résumé des résultats de la fonction.
 
 ```{r}
 mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
 # Inspect the merger data.frame from the first sample
 head(mergers[[1]])
 ```
+
+## **7) Création d'un tableau de visualisation des ASV**
 
 ```{r}
 seqtab <- makeSequenceTable(mergers)
