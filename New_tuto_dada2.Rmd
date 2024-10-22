@@ -271,15 +271,33 @@ head(mergers[[1]])
 
 ## **7) Création d'un tableau de visualisation des ASV**
 
+La fonction **makeSequenceTable** permet de créer un tableur (similaire à un tableau d'OTU) présentant les différents ASVs.
+
+-   **seqtab** : Nouvel objet auquel a été assigné le tableur réalisé grace à **makeSequenceTable**.
+
+-   **dim()** : Permet d'obtenir ou de définir la dimension d'un objet.
+    Ici, **dim(seqtab)** permet d'afficher les dimensions de la table de séquences créée, c'est-à-dire de donner deux informations importantes : **Le nombre d'échantillons** (lignes de la table) qui est ici de 20 et le nombre de séquences uniques (ASV) qui est de 293.
+
 ```{r}
 seqtab <- makeSequenceTable(mergers)
 dim(seqtab)
 ```
 
+La fonction **nchar** permet d'inspecter la distribution des longueurs des **séquences** **ASVs** dans le tableau **seqtab**.
+Les tailles desséquences ASVs sont indiquées sur la première ligne et le nombre de séquences ayant des longueurs correspondantes sont indiqués dans la deuxième ligne.
+La taille des séquences des variants biologiques avoisine les 250 paires de bases ce qui correspond à la taille de la région V4 de l\'ARN 16S qui est normalement comprise entre 250 et 255 pb selon les especes bactérienne.
+La distribution de taille des ASV obtenue est cohérente avec la taille attendue.
+
+-   **getSequences** : Cette fonction extrait toutes les **ASV** présentes dans le tableau **seqtab**.
+
+-   **table(nchar())** : génère un tableau de **fréquences** indiquant combien de séquences ont une longueur spécifique.
+
 ```{r}
 # Inspect distribution of sequence lengths
 table(nchar(getSequences(seqtab)))
 ```
+
+## 8) Suppression des chimères
 
 ```{r}
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
