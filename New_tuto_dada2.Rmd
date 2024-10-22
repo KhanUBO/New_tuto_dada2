@@ -180,7 +180,7 @@ Lors de cette nouvelle étape, les séquences sous format FASTQ désignées par 
 
 -   **multithread=TRUE** : Utilise plusieurs threads pour accélérer la filtration et le troncage.
 
--   **out** : objet de sortie qui contient le résultat de la fonction **filterAndTrim**, c'est une table récapitulant les nombres de reads avant et après le filtrage.
+-   **out** : objet de sortie qui contient le résultat de la fonction **filterAndTrim**, c'est un tableau récapitulant les nombres de reads avant et après le filtrage.
 
 -   **head(out)** : Affiche les premières lignes de la table **out**, montrant un aperçu du nombre de reads conservés après le filtrage pour chaque échantillon.
 
@@ -299,14 +299,56 @@ table(nchar(getSequences(seqtab)))
 
 ## 8) Suppression des chimères
 
+Dans cette nouvelle étape, les chimères sont éliminées du jeu de données grace à la fonction **removeBimeraDenovo**.
+Les chimères sont des séquences d'ADN anormales qui résultent de la fusion incorrecte de deux ARN 16S lors de l'amplification par PCR, avant le séquençage.
+La fonction **removeBimeraDenovo** compare les séquences qui ne s\'alignent pas correctement avec le jeu de données et peut identifier les chimères si le début d'une séquence chimérique correspond à une séquence du jeu de données et si la fin de cette séquence chimérique correspond à une autre séquence du jeu de données.
+
+Le code suivant effectue donc la détection et la suppression des **séquences chimériques** de la table de séquences **seqtab**, puis affiche les dimensions de la table de séquences sans chimères dans un nouvel objet (tableau) nommé **seqtab.nochim**.
+
+-   **method="consensus"** : Ce paramètre de **removeBimeraDenovo** permet de vérifier chaque échantillon indépendamment pour détecter les chimères.
+    Ensuite, une décision consensuelleest prise pour déterminer si une séquence est une chimère, en se basant sur l'accord entre les résultats de plusieurs échantillons.
+
 ```{r}
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
 dim(seqtab.nochim)
 ```
 
+Ensuite la fraction de toutes les séquences fusionnées qui n\'étaient pas des chimères (96%) a été calculée grâce au code suivant.
+Cela signifie qu'environ 4% des ASV obtenus étaient des chimères.
+
 ```{r}
 sum(seqtab.nochim)/sum(seqtab)
 ```
+
+## 8) Vérification finale : Nombre de lectures à chaque étape
+
+Le code suivant permet de produire un tableau récapitulatif montrant combien de séquences ont été conservées ou enlevées à chaque étape du traitement des données.
+Par exemple, Il y a moins de séquences après l'étape **denoised** qu'après l'étape **filtered**, car DADA2 a corrigé certaines séquences qui ne sont plus considérées comme uniques.
+
+Pour les paramètres, si j'ai bien compris ça donne quelque chose comme ça:
+
+-   **getN :** Cette fonction prend un objet DADA2 comme paramètre et calcule le nombre total de séquences uniques qu'il contient.
+
+-   **getUniques** : Cette fonction extrait le vecteur des séquences uniques d'un objet de type DADA2
+
+-   **sum(getUniques)** : La fonction **getN** renvoie la somme des valeurs du vecteur retourné par **getUniques**, ce qui correspond au nombre total de séquences uniques présentes dans l'objet x.
+
+-   **cbind**: Combine plusieurs vecteurs ou matrices par colonne pour créer un nouveau tableau.
+
+-   **out** : est un objet précédemment définit qui contient le résultat de la fonction **filterAndTrim**, c'est un tableau récapitulant les nombres de reads avant et après le filtrage.
+
+-   **sapply(dadaFs, getN)** : Applique la fonction **getN** à chaque élément de **dadaFs** pour obtenir le nombre de séquences uniques pour chaque échantillon de dadaFs.
+    Pareil pour **dadaRs** et **mergers**.
+
+-   **rowSums(seqtab.nochim)** : Calcule la somme des séquences non chimériques dans **seqtab.nochim**, donnant le nombre total de séquences uniques après suppression des chimères pour chaque échantillon.
+
+-   **track** : Nouvel objet qui stocke un tableau récapitulatif des nombres de séquences aux différentes étapes du traitement des données de séquençage par dada2.
+
+-   **colnames(track)** : Cette ligne définit les noms des colonnes du tableau **track**.
+
+-   **rownames(track) \<- sample.names** : Cette ligne attribue des noms aux lignes du tableau **track**, qui correspondent aux noms des échantillons.
+
+-   **head(track)** : Permet de visualizer les premieres lignes du tableau **track**.
 
 ```{r}
 getN <- function(x) sum(getUniques(x))
@@ -317,10 +359,26 @@ rownames(track) <- sample.names
 head(track)
 ```
 
+## 9) Attribution de taxonomies 
+
+La fonction **assignTaxonomy** a été utilisée pour attribuer une classification taxonomique aux séquences d'ADN de la table **seqtab.nochim**, en se basant sur la base de données taxonomiques SILVA, ce qui permet d'identifier les niveaux taxonomiques des ASVs.
+
+Le chemin vers le dossier contenant la base de données taxonomiques SILVA est donné avec "/home/rstudio/New_tuto_dada2/silva_nr99_v138.1_wSpecies_train_set.fa.gz?download=1".
+
 ```{r}
-library(dada2)
 taxa <- assignTaxonomy(seqtab.nochim,"/home/rstudio/New_tuto_dada2/silva_nr99_v138.1_wSpecies_train_set.fa.gz?download=1", multithread=TRUE)
 ```
+
+Ensuite, il a fallu supprimer les noms de lignes:
+
+-   **taxa.print \<- taxa** : Permet de créer une nouvelle varaiable **taxa.print** qui contient exactement les même donnés que l'objet **taxa**.
+
+-   **rownames(taxa.print) \<- NULL** : Cette ligne supprime les noms de lignes (rownames) de l'objet **taxa.print**.
+    Cela permet une lecture plus claire des données.
+
+-   **head(taxa.print)** : Permet de visualizer les premieres lignes du tableau **taxa.print**.
+
+Dans de tableau les taxonomies attribuées aux ASV s'arrêtent au niveau des familles.
 
 ```{r}
 taxa.print <- taxa # Removing sequence rownames for display only
@@ -340,7 +398,12 @@ match.ref <- sum(sapply(names(unqs.mock), function(x) any(grepl(x, mock.ref))))
 cat("Of those,", sum(match.ref), "were exact matches to the expected reference sequences.\n")
 ```
 
-Bonus: Handoff to phyloseq
+## Bonus: Handoff to phyloseq
+
+DADA2 permet de créer une table d'ASV (Amplicon Sequence Variants) pour l'observation, qui peut ensuite être utilisée avec le package **phyloseq** (développé par les mêmes auteurs que DADA2).
+
+Le package **phyloseq** est un outil puissant pour importer, stocker, analyser et visualiser des données de séquençage phylogénétique complexes, notamment celles regroupées en unités taxonomiques opérationnelles (OTU).
+Il est particulièrement utile lorsqu'il existe des données d'échantillon associées, un arbre phylogénétique et/ou des assignations taxonomiques des OTU.
 
 Import into phyloseq:
 
