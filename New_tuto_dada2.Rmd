@@ -454,9 +454,24 @@ Toute les informations nécessaires à la création de la table de métadonnées
 3.  **substr(subject,1,1)** : **substr** sert à extraire une chaine de caractère d'une autre chaine de caractère.
     Le substr commence au premier caractère et fini au premier caractère, donc permet d'isoler seulement le premier caractère.
     Donc en reprenant l'exemple de F3D0, le premier caractère de **subject** (F3) est F.
-    F correspond a **Female**, donc le nom du fichier permet bien de déterminer le
+    F correspond a **Female**, donc le nom du fichier permet bien de déterminer le genre de la souris pour chaque fichiers.
 
-4.  
+4.  **subject \<- substr(subject,2,999)** : Remplacement de **subject** qui était dans cet exemple F3 par ce qu'il y a dans **subject** de la 2ème à après (999ème) donc cela correspond à 3 (de F3).
+    Donc d'abord subject reçoit F et ensuite subject ne reçoit que le deuxième caractére 3.
+
+5.  La variable day reçoit le strsplit de samples.out avec le séparateur D pour récupérer la deuxième case qui correspond aux **nombre de jours après sevrage**.
+    Exemple avec F3D0: D0 désigne le jour 0.
+
+6.  **samdf** est une data frame, elle est construite avec une première colone **Subject** qui va recevoir toute les valeurs qu'il y a dans l'objet **subject**.
+    Une deuxième colonne qui s'appelle **Gender** et qui va recevoir toute les valeurs qu'il y a dans l'objet **gender**.
+    Et une troisième colonne qui s'appelle **Day** et qui va recevoir toute les valeurs qu'il y a dans l'objet **day**.
+
+7.  Ensuite **samdf\$When** permet de rajouter une colone **When** (ajout automatique car elle n'existe pas encore), qui reçoit **Early**.
+
+8.  **samdf\$When[samdf\$Day\>100] \<- "Late"** : C'est une instruction conditionelle qui permet d'écrire **Late** dans la colone **When** à chaque fois que dans une ligne du tableau **Day** est supérieur à 100.
+    Donc à chaque fois que Day est supérieur à 100, **Early** (qui a été ajouté à chaque ligne de la colone When) sera remplacé par Late.
+
+9.  **rownames(samdf) \<- samples.out** : Chaque ligne du data frame **samdf** a été nommée d'après l'échantillon correspondant présent dans **samples.out**.
 
 ```{r}
 theme_set(theme_bw())
