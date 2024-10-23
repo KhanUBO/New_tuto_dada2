@@ -285,7 +285,7 @@ dim(seqtab)
 
 La fonction **nchar** permet d'inspecter la distribution des longueurs des **séquences** **ASVs** dans le tableau **seqtab**.
 Les tailles desséquences ASVs sont indiquées sur la première ligne et le nombre de séquences ayant des longueurs correspondantes sont indiqués dans la deuxième ligne.
-La taille des séquences des variants biologiques avoisine les 250 paires de bases ce qui correspond à la taille de la région V4 de l\'ARN 16S qui est normalement comprise entre 250 et 255 pb selon les especes bactérienne.
+La taille des séquences des variants biologiques avoisine les 250 paires de bases ce qui correspond à la taille de la région V4 de l'ARN 16S qui est normalement comprise entre 250 et 255 pb selon les especes bactérienne.
 La distribution de taille des ASV obtenue est cohérente avec la taille attendue.
 
 -   **getSequences** : Cette fonction extrait toutes les **ASV** présentes dans le tableau **seqtab**.
@@ -301,19 +301,18 @@ table(nchar(getSequences(seqtab)))
 
 Dans cette nouvelle étape, les chimères sont éliminées du jeu de données grace à la fonction **removeBimeraDenovo**.
 Les chimères sont des séquences d'ADN anormales qui résultent de la fusion incorrecte de deux ARN 16S lors de l'amplification par PCR, avant le séquençage.
-La fonction **removeBimeraDenovo** compare les séquences qui ne s\'alignent pas correctement avec le jeu de données et peut identifier les chimères si le début d'une séquence chimérique correspond à une séquence du jeu de données et si la fin de cette séquence chimérique correspond à une autre séquence du jeu de données.
+La fonction **removeBimeraDenovo** compare les séquences qui ne s'alignent pas correctement avec le jeu de données et peut identifier les chimères si le début d'une séquence chimérique correspond à une séquence du jeu de données et si la fin de cette séquence chimérique correspond à une autre séquence du jeu de données.
 
 Le code suivant effectue donc la détection et la suppression des **séquences chimériques** de la table de séquences **seqtab**, puis affiche les dimensions de la table de séquences sans chimères dans un nouvel objet (tableau) nommé **seqtab.nochim**.
 
--   **method="consensus"** : Ce paramètre de **removeBimeraDenovo** permet de vérifier chaque échantillon indépendamment pour détecter les chimères.
-    Ensuite, une décision consensuelleest prise pour déterminer si une séquence est une chimère, en se basant sur l'accord entre les résultats de plusieurs échantillons.
+-   **method="consensus"** : Ce paramètre de **removeBimeraDenovo** permet de vérifier chaque échantillon indépendamment pour détecter les chimères. Ensuite, une décision consensuelleest prise pour déterminer si une séquence est une chimère, en se basant sur l'accord entre les résultats de plusieurs échantillons.
 
 ```{r}
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
 dim(seqtab.nochim)
 ```
 
-Ensuite la fraction de toutes les séquences fusionnées qui n\'étaient pas des chimères (96%) a été calculée grâce au code suivant.
+Ensuite la fraction de toutes les séquences fusionnées qui n'étaient pas des chimères (96%) a été calculée grâce au code suivant.
 Cela signifie qu'environ 4% des ASV obtenus étaient des chimères.
 
 ```{r}
@@ -359,7 +358,7 @@ rownames(track) <- sample.names
 head(track)
 ```
 
-## 9) Attribution de taxonomies 
+## 9) Attribution de taxonomies
 
 La fonction **assignTaxonomy** a été utilisée pour attribuer une classification taxonomique aux séquences d'ADN de la table **seqtab.nochim**, en se basant sur la base de données taxonomiques SILVA, ce qui permet d'identifier les niveaux taxonomiques des ASVs.
 
@@ -369,7 +368,7 @@ Le chemin vers le dossier contenant la base de données taxonomiques SILVA est d
 taxa <- assignTaxonomy(seqtab.nochim,"/home/rstudio/New_tuto_dada2/silva_nr99_v138.1_wSpecies_train_set.fa.gz?download=1", multithread=TRUE)
 ```
 
-Ensuite, il a fallu supprimer les noms de lignes:
+[**Inspection des attributions taxonomiques:**]{.underline}
 
 -   **taxa.print \<- taxa** : Permet de créer une nouvelle varaiable **taxa.print** qui contient exactement les même donnés que l'objet **taxa**.
 
@@ -386,11 +385,33 @@ rownames(taxa.print) <- NULL
 head(taxa.print)
 ```
 
+## 10) Évaluation de l'exactitude des données
+
+Un des échantillons inclus dans cette analyse est une **communauté mock**, dans laquelle un mélange de 20 souches connues a été séquencé (cette communauté mock devait initialement inclure 21 souches, mais **P. acnes** est absente des données brutes).
+Les séquences de référence correspondant à ces souches sont fournies dans l'archive téléchargée.
+Nous revenons donc à cet échantillon **Mock** pour comparer les variants de séquences inférés par **DADA2** avec la composition attendue de la communauté.
+
+-   **unqs.mock \<- seqtab.nochim["Mock",]** : Permet d'extraire les séquences associées à la **communauté mock** dans la table des séquences non chimériques.
+
+-   **unqs.mock \<- sort(unqs.mock[unqs.mock\>0], decreasing=TRUE)** :Seules les séquences présentes dans l'échantillon **Mock** sont conservées, en excluant celles qui n'ont pas été détectées (abondance zéro).
+    Ensuite, elles sont triées par ordre décroissant d'abondance pour visualiser les séquences les plus présentes en premier.
+
+-   **cat("DADA2 inferred", length(unqs.mock), "sample sequences present in the Mock community.\\n")** : Cette ligne affiche combien de séquences ont été détectées par DADA2 dans la communauté mock.
+    Ici, 20 séquences sont trouvées, cela signifie que l'analyse avec DADA2 a bien identifié les 20 souches présentes.
+
 ```{r}
 unqs.mock <- seqtab.nochim["Mock",]
 unqs.mock <- sort(unqs.mock[unqs.mock>0], decreasing=TRUE) # Drop ASVs absent in the Mock
 cat("DADA2 inferred", length(unqs.mock), "sample sequences present in the Mock community.\n")
 ```
+
+-   **mock.ref \<- getSequences(file.path(path, "HMP_MOCK.v35.fasta"))** : Chargement des séquences de référence depuis le fichier **HMP_MOCK.v35.fasta**, qui contient les séquences des 20 souches présentes dans la communauté Mock.
+    Assignation à la variable **mock.ref**.
+
+-   **match.ref \<- sum(sapply(names(unqs.mock), function(x) any(grepl(x, mock.ref))))** : Cette ligne compare les séquences détectées par **DADA2** avec les séquences de référence.
+    Elle utilise la fonction **sapply** pour vérifier si chaque séquence inférée dans unqs.mock correspond exactement à une séquence de la communauté Mock.
+
+-   **grepl(x, mock.ref)** : cherche une correspondance exacte entre la séquence **x** et les séquences de référence.
 
 ```{r}
 mock.ref <- getSequences(file.path(path, "HMP_MOCK.v35.fasta"))
@@ -398,14 +419,16 @@ match.ref <- sum(sapply(names(unqs.mock), function(x) any(grepl(x, mock.ref))))
 cat("Of those,", sum(match.ref), "were exact matches to the expected reference sequences.\n")
 ```
 
-## Bonus: Handoff to phyloseq
+Ces deux derniers codent permettent de vérifier la correspondance entre les séquences inférées par **DADA2** et les souches de référence attendues dans la **communauté mock** pour évaluer la précision et qualité du séquençage et de l'analyse DADA2.
+
+# Bonus: Phyloseq
 
 DADA2 permet de créer une table d'ASV (Amplicon Sequence Variants) pour l'observation, qui peut ensuite être utilisée avec le package **phyloseq** (développé par les mêmes auteurs que DADA2).
 
 Le package **phyloseq** est un outil puissant pour importer, stocker, analyser et visualiser des données de séquençage phylogénétique complexes, notamment celles regroupées en unités taxonomiques opérationnelles (OTU).
 Il est particulièrement utile lorsqu'il existe des données d'échantillon associées, un arbre phylogénétique et/ou des assignations taxonomiques des OTU.
 
-Import into phyloseq:
+Chargement des packages **phyloseq**, **Biostrings** et **ggplot2**.
 
 ```{r}
 library(phyloseq); packageVersion("phyloseq")
@@ -419,7 +442,21 @@ library(Biostrings); packageVersion("Biostrings")
 library(ggplot2); packageVersion("ggplot2")
 ```
 
-Création de la table de métadonnées
+Création de la table de métadonnées:
+
+Toute les informations nécessaires à la création de la table de métadonnées sont contenues dans le titre du fichier, donc l'auteur du tutoriel utilise ces informations pour créer cette table.
+
+1.  Création d'une table nommée **samples.out** dans laquelle il y a les noms des lignes de la table contenu dans la variable **seqtab.nochim** (noms des fichiers).
+
+2.  Utilisation de **sapply** et **strsplit** pour extraire la première case de ces noms (dans **samples.out**) et assigner cela à la variable **subject**.
+    Cela donne par example pour le fichier avec le nom F3D0: extraction de F3 assigné à **subject**.
+
+3.  **substr(subject,1,1)** : **substr** sert à extraire une chaine de caractère d'une autre chaine de caractère.
+    Le substr commence au premier caractère et fini au premier caractère, donc permet d'isoler seulement le premier caractère.
+    Donc en reprenant l'exemple de F3D0, le premier caractère de **subject** (F3) est F.
+    F correspond a **Female**, donc le nom du fichier permet bien de déterminer le
+
+4.  
 
 ```{r}
 theme_set(theme_bw())
